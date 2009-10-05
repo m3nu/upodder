@@ -10,6 +10,7 @@ from ConfigParser import ConfigParser
 import urllib
 import re
 import urlparse
+#from pprint import pprint
 
 configpath=expanduser("~/.upodder.ini")
 
@@ -120,7 +121,6 @@ def downloadEnclosure(enclosure, entry, feed):
 	if not filename: return False
 
 	# Move downloaded file to its final destination
-	print feed.feed.title
 	moveto = podcastsdir + os.sep + generateFileName(filename, entry, feed)
 	l.debug("Moving {%s} to {%s}"%(downloadto,moveto))
 	if not os.path.exists(os.path.dirname(moveto)): os.makedirs(os.path.dirname(moveto),0750)
@@ -135,7 +135,8 @@ def generateFileName(filename, entry, feed):
 		'entry_date': '%i-%02i-%02i'%entryTime(entry)[0:3],
 		'id': entryId(entry),
 		'entry_title': re.sub(badfnchars,'_',entry.get('title')),
-		'feed_title': re.sub(badfnchars,'_',feed.feed.get('title')),
+		'feed_href': re.sub(badfnchars,'_',feed.href),
+		'feed_title': re.sub(badfnchars,'_',feed.feed.get('title',feed.href)),
 		'original_filename': re.sub(badfnchars,'_',filename),
 	}
 	return c.get('DEFAULT','filename',vars=subst)
@@ -166,6 +167,7 @@ def manageFeed(url):
 		l.error("Erroneous feed URL: %s (%s)"%(url,feed.bozo_exception))
 		return
 	l.info("Checking feed: {%s}"%feed.feed.title)
+	#pprint(feed.feed)
 	for entry in feed.entries: manageEntry(entry, feed)
 
 # Initializing config file
