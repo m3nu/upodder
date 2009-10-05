@@ -10,7 +10,6 @@ from ConfigParser import ConfigParser
 import urllib
 import re
 import urlparse
-#from pprint import pprint
 
 configpath=expanduser("~/.upodder.ini")
 
@@ -31,6 +30,7 @@ defaults = {
 		'logtoconsole': "yes",
 		'oldness': 1209600,
 		'loglevel': logging.DEBUG,
+		'reverseorder': "yes",
 }
 
 def purgeSeenDB(oldness):
@@ -167,7 +167,8 @@ def manageFeed(url):
 		l.error("Erroneous feed URL: %s (%s)"%(url,feed.bozo_exception))
 		return
 	l.info("Checking feed: {%s}"%feed.feed.title)
-	#pprint(feed.feed)
+	if c.get('DEFAULT','reverseorder') in yes:
+		feed.entries.reverse()
 	for entry in feed.entries: manageEntry(entry, feed)
 
 # Initializing config file
