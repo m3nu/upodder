@@ -2,7 +2,7 @@
 
 import feedparser
 import time
-import sha
+import hashlib
 import os
 from os.path import expanduser
 import logging
@@ -49,7 +49,7 @@ def purgeSeenDB(oldness):
 
 def entryId(entry):
 	"""Returns ID of entry"""
-	return sha.new(entry.get('id')).hexdigest()
+	return hashlib.sha1(entry.get('id')).hexdigest()
 
 def entryTime(entry):
 	"""Returns tuple in time.localtime() format"""
