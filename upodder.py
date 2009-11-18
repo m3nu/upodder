@@ -135,7 +135,7 @@ def generateFileName(filename, entry, feed):
 		'entry_date': '%i-%02i-%02i'%entryTime(entry)[0:3],
 		'id': entryId(entry),
 		'entry_title': re.sub(badfnchars,'_',entry.get('title')),
-		'feed_href': re.sub(badfnchars,'_',feed.href),
+		'feed_href': re.sub(badfnchars,'_',feed.href.split('://')[-1]),
 		'feed_title': re.sub(badfnchars,'_',feed.feed.get('title',feed.href)),
 		'original_filename': re.sub(badfnchars,'_',filename),
 	}
