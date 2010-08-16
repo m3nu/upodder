@@ -46,6 +46,7 @@ def purgeSeenDB(oldness):
 		if len(s) >= 52 and int(now - int(s[41:52])) < oldness: ns.write(s)
 		else: l.debug("Expiring (%s)"%s.strip())
 	ns.close()
+	os.remove(seendb)
 	os.rename(newseendb,seendb)
 
 def entryId(entry):
