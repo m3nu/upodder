@@ -164,7 +164,7 @@ def manageEntry(entry, feed):
 def manageFeed(url):
 	"""Let's deal with this podcast feed"""
 	feed = feedparser.parse(url)
-	if feed.bozo:
+	if feed.bozo and type(feed.bozo_exception) != type(feedparser.CharacterEncodingOverride()):
 		l.error("Erroneous feed URL: %s (%s)"%(url,feed.bozo_exception))
 		return
 	l.info("Checking feed: {%s}"%feed.feed.title)
