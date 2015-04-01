@@ -10,6 +10,8 @@ from ConfigParser import ConfigParser
 import urllib
 import re
 import urlparse
+import requests
+from clint.textui import progress
 
 configpath=expanduser("~/.upodder.ini")
 
@@ -92,7 +94,13 @@ def retrieveURL(url,file):
 	filename = path.split("/")[-1]
 	try:
 		l.debug("Downloading {%s} to {%s}"%(url,os.path.basename(file)))
-		urllib.urlretrieve(url,file)
+		r = requests.get(url, stream=True)
+		with open(file, 'wb') as f:
+			total_length = int(r.headers.get('content-length'))
+			for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1): 
+				if chunk:
+					f.write(chunk)
+					f.flush()
 	except Exception, e:
 		l.error("Download exception occured: %s"%e)
 		return False
@@ -164,7 +172,8 @@ def manageEntry(entry, feed):
 def manageFeed(url):
 	"""Let's deal with this podcast feed"""
 	feed = feedparser.parse(url)
-	if feed.bozo and type(feed.bozo_exception) != type(feedparser.CharacterEncodingOverride()):
+	allowed_exceptions = [type(feedparser.CharacterEncodingOverride()), type(feedparser.NonXMLContentType())]
+	if feed.bozo and type(feed.bozo_exception) not in allowed_exceptions:
 		l.error("Erroneous feed URL: %s (%s)"%(url,feed.bozo_exception))
 		return
 	l.info("Checking feed: {%s}"%feed.feed.title)
