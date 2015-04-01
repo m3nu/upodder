@@ -4,14 +4,15 @@ import feedparser
 import time
 import hashlib
 import os
+import sys
 from os.path import expanduser
 import logging
 from ConfigParser import ConfigParser
-import urllib
 import re
 import urlparse
 import requests
 from clint.textui import progress
+from sqlobject import SQLObject, sqlite, DateTimeCol, UnicodeCol, BoolCol
 
 configpath=expanduser("~/.upodder.ini")
 
@@ -25,7 +26,7 @@ defaults = {
 		'podcastsdir': '~/PODCASTS',
 		'filename': '%(today)s/%(id)s.mp3',
 		'subscriptions': '%(basedir)s/subscriptions',
-		'seendb': '%(basedir)s/seen.db',
+		'seendb': '%(basedir)s/seen2.db',
 		'tmpdir': '%(basedir)s/temp',
 		'logfile': '%(basedir)s/upodder.log',
 		'logtofile': "no",
@@ -34,6 +35,25 @@ defaults = {
 		'loglevel': logging.DEBUG,
 		'reverseorder': "yes",
 }
+
+# Initializing config file
+c = ConfigParser(defaults)
+if not os.path.exists(configpath):
+	c.write(open(configpath,'a'))
+c.read(configpath)
+
+class Entry(SQLObject):
+	"Represents a single feed item, seen before. Used to keep track of download status."
+	_connection = sqlite.builder()(expanduser(c.get('DEFAULT','seendb')), debug=False)
+	feed_url = UnicodeCol()
+	pub_date = DateTimeCol()
+	title = UnicodeCol()
+	seen = BoolCol()
+	downloaded = BoolCol()
+
+
+from sqlobject.sqlite import builder; SQLiteConnection = builder()
+conn = SQLiteConnection('person.db', debug=False)
 
 def purgeSeenDB(oldness):
 	"""Rids of records older than oldness argument in seendb"""
@@ -181,47 +201,47 @@ def manageFeed(url):
 		feed.entries.reverse()
 	for entry in feed.entries: manageEntry(entry, feed)
 
-# Initializing config file
-c = ConfigParser(defaults)
-if not os.path.exists(configpath):
-	c.write(open(configpath,'a'))
-c.read(configpath)
+if __name__ == '__main__':
+	Entry.createTable(ifNotExists=True)
+	print Entry.select().count()
+	print 'ok'
+	sys.exit()
 
 
-# Initializing logging
-l = logging.Logger('upodder',int(c.get('DEFAULT','loglevel')))
+	# Initializing logging
+	l = logging.Logger('upodder',int(c.get('DEFAULT','loglevel')))
 
-if c.get('DEFAULT','logtoconsole') in yes:
-	stderrHandler = logging.StreamHandler()
-	stderrHandler.setFormatter(logging.Formatter('%(message)s'))
-	l.addHandler(stderrHandler)
+	if c.get('DEFAULT','logtoconsole') in yes:
+		stderrHandler = logging.StreamHandler()
+		stderrHandler.setFormatter(logging.Formatter('%(message)s'))
+		l.addHandler(stderrHandler)
 
-if c.get('DEFAULT','logtofile') in yes:
-	fileHandler = logging.FileHandler(expanduser(c.get('DEFAULT','logfile')),'a')
-	fileHandler.setFormatter(logging.Formatter('%(asctime)s %(name)s (%(levelname)s): %(message)s'))
-	l.addHandler(fileHandler)
+	if c.get('DEFAULT','logtofile') in yes:
+		fileHandler = logging.FileHandler(expanduser(c.get('DEFAULT','logfile')),'a')
+		fileHandler.setFormatter(logging.Formatter('%(asctime)s %(name)s (%(levelname)s): %(message)s'))
+		l.addHandler(fileHandler)
 
-# Initializing necessary files and directories
-basedir =	expanduser(c.get('DEFAULT','basedir'))
-podcastsdir =	expanduser(c.get('DEFAULT','podcastsdir'))
-tmpdir =	expanduser(c.get('DEFAULT','tmpdir'))
-subscriptions =	expanduser(c.get('DEFAULT','subscriptions'))
-seendb =	expanduser(c.get('DEFAULT','seendb'))
+	# Initializing necessary files and directories
+	basedir =	expanduser(c.get('DEFAULT','basedir'))
+	podcastsdir =	expanduser(c.get('DEFAULT','podcastsdir'))
+	tmpdir =	expanduser(c.get('DEFAULT','tmpdir'))
+	subscriptions =	expanduser(c.get('DEFAULT','subscriptions'))
+	seendb =	expanduser(c.get('DEFAULT','seendb'))
 
-if not os.path.exists(basedir):
-	l.info("Creating base dir %s"%basedir)
-	os.makedirs(basedir,0700)
+	if not os.path.exists(basedir):
+		l.info("Creating base dir %s"%basedir)
+		os.makedirs(basedir,0700)
 
-if not os.path.exists(subscriptions):
-	l.info("Creating empty subscriptions file %s"%subscriptions)
-	open(subscriptions,'a').write("# Add your RSS/ATOM subscriptions here.\n\n")
+	if not os.path.exists(subscriptions):
+		l.info("Creating empty subscriptions file %s"%subscriptions)
+		open(subscriptions,'a').write("# Add your RSS/ATOM subscriptions here.\n\n")
 
-#Processing feed URLs
-for url in map(lambda x: x.strip(), open(subscriptions)):
-	if not url: continue
-	if url[0] in configcomment: continue
-	manageFeed(url)
+	#Processing feed URLs
+	for url in map(lambda x: x.strip(), open(subscriptions)):
+		if not url: continue
+		if url[0] in configcomment: continue
+		manageFeed(url)
 
-l.info("Purging seendb")
-purgeSeenDB(int(c.get('DEFAULT','oldness') * 2))
+	l.info("Purging seendb")
+	purgeSeenDB(int(c.get('DEFAULT','oldness') * 2))
 
