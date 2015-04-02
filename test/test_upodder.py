@@ -1,26 +1,45 @@
 import unittest
-import urllib2
-from flask import Flask
-from flask.ext.testing import LiveServerTestCase
+import shutil
 
-class TestUpodder(LiveServerTestCase):
+import upodder
 
-    def create_app(self):
-        app = Flask(__name__)
-        app.config['TESTING'] = True
-        # Default port is 5000
-        app.config['LIVESERVER_PORT'] = 8943
+BASEDIR = '/tmp/upodder_testing'
 
-        @app.route("/ajax")
-        def return_podcast_xml():
-            return 'asdf'
-        
-        return app
+class TestUpodder(unittest.TestCase):
+    feeds = [
+                "http://popupchinese.com/feeds/custom/sinica",
+                "http://www.radiolab.org/feeds/podcast/",
+                "http://99percentinvisible.org/feed/",
+                "http://chaosradio.ccc.de/chaosradio-latest.rss",
+                "http://djfm.ca/?feed=rss2",
+                "http://feeds.feedburner.com/Sebastien-bHouseFromIbiza/",
+                "http://alternativlos.org/ogg.rss",
+                "http://www.sovereignman.com/feed/",
+                "http://neusprech.org/feed/",
+                "http://www.davidbarrkirtley.com/podcast/geeksguideshow.xml",
+                "http://www.cbc.ca/cmlink/1.2919550",
+                "http://www.sciencefriday.com/feed/scifriall.xml"
+            ]
 
-    def test_server_is_up_and_running(self):
-        response = urllib2.urlopen(self.get_server_url() + '/ajax')
-        self.assertEqual(response.code, 200)
+    def setUp(self):
+        upodder.args.no_download = True
+        upodder.args.mark_seen = False
+        upodder.args.basedir = BASEDIR
+        upodder.init()
 
+    def test_feedparsing(self):
+        for f in self.feeds:
+            upodder.process_feed(f)
+
+    def test_mark_seen(self):
+        upodder.args.mark_seen = True
+        for f in self.feeds:
+            upodder.process_feed(f)
+
+        self.assertGreater(upodder.SeenEntry.select().count(), 5)
+
+    def tearDown(cls):
+        shutil.rmtree(BASEDIR);
 
 if __name__ == '__main__':
     unittest.main()

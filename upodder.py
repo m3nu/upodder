@@ -4,244 +4,170 @@ import feedparser
 import time
 import hashlib
 import os
-import sys
 from os.path import expanduser
 import logging
-from ConfigParser import ConfigParser
 import re
-import urlparse
+import cgi
 import requests
+import argparse
+from datetime import datetime as dt
 from clint.textui import progress
-from sqlobject import SQLObject, sqlite, DateTimeCol, UnicodeCol, BoolCol
+from sqlobject import SQLObject, sqlite, DateTimeCol, UnicodeCol
 
-configpath=expanduser("~/.upodder.ini")
+parser = argparse.ArgumentParser(description='Download podcasts via the command line.')
+parser.add_argument('--no-download', action='store_true',
+                   help="Don't download any files. Just mark as read.")
+parser.add_argument('--podcastdir', '-p', default='~/Downloads/podcasts', 
+    help="Folder to download podcast files to.")
+parser.add_argument('--basedir', '-b', default='/.upodder', 
+    help="Folder to store subscriptions and seen database.")
+parser.add_argument('--oldness', '-o', default=30, 
+    help="Skip entries older than X days.")
+parser.add_argument('--mark-seen', action='store_false',
+    help="Just mark all entries as seen and exit.")
+parser.add_argument('--log-level', '-l', default=5, 
+    help="Logging level. 5=Debug.")
+args = parser.parse_args()
 
-yes = [1,"1","on","yes","Yes","YES","y","Y","true","True","TRUE","t","T"]
-no = [0,"0","off","no","No","NO","n","N","false","False","FALSE","f","F"]
-configcomment = ['#',';','$',':','"',"'"]
-badfnchars = re.compile('[^\w]+',re.LOCALE)
+YES = [1,"1","on","yes","Yes","YES","y","Y","true","True","TRUE","t","T"]
+CONFIGCOMMENT = ['#',';','$',':','"',"'"]
+BADFNCHARS = re.compile('[^\w]+',re.LOCALE)
+TEMPDIR = '/tmp/upodder'
+FILENAME = '%(entry_title)s.mp3'
 
-defaults = {
-		'basedir': '~/.upodder',
-		'podcastsdir': '~/PODCASTS',
-		'filename': '%(today)s/%(id)s.mp3',
-		'subscriptions': '%(basedir)s/subscriptions',
-		'seendb': '%(basedir)s/seen2.db',
-		'tmpdir': '%(basedir)s/temp',
-		'logfile': '%(basedir)s/upodder.log',
-		'logtofile': "no",
-		'logtoconsole': "yes",
-		'oldness': 1209600,
-		'loglevel': logging.DEBUG,
-		'reverseorder': "yes",
-}
+# Initializing logging
+l = logging.Logger('upodder', logging.DEBUG)
+stderrHandler = logging.StreamHandler()
+stderrHandler.setFormatter(logging.Formatter('%(message)s'))
+l.addHandler(stderrHandler)
 
-# Initializing config file
-c = ConfigParser(defaults)
-if not os.path.exists(configpath):
-	c.write(open(configpath,'a'))
-c.read(configpath)
+class SeenEntry(SQLObject):
+    "Represents a single feed item, seen before. Used to keep track of download status."
+    hashed = UnicodeCol()
+    pub_date = DateTimeCol()
 
-class Entry(SQLObject):
-	"Represents a single feed item, seen before. Used to keep track of download status."
-	_connection = sqlite.builder()(expanduser(c.get('DEFAULT','seendb')), debug=False)
-	feed_url = UnicodeCol()
-	pub_date = DateTimeCol()
-	title = UnicodeCol()
-	seen = BoolCol()
-	downloaded = BoolCol()
+class EntryProcessor(object):
+    "Processes single feed entry"
+    def __init__(self, entry, feed):
+        self.hashed = hashlib.sha1(entry['title'].encode('ascii', 'ignore')).hexdigest()
+        self.pub_date = dt.fromtimestamp(time.mktime(entry.published_parsed))
 
+        if args.mark_seen:
+            SeenEntry(pub_date=self.pub_date, hashed=self.hashed)
+            return
 
-from sqlobject.sqlite import builder; SQLiteConnection = builder()
-conn = SQLiteConnection('person.db', debug=False)
+        # Let's check if we worked on this entry earlier...
+        if SeenEntry.select(SeenEntry.q.hashed == self.hashed).count() > 0:
+            l.debug("Already seen: %s"%(entry['title']))
+            return
+        
+        # Let's check the entry's date
+        if (dt.now() - self.pub_date).days > args.oldness:
+            l.debug("Too old for us: %s"%entry['title'])
+            return
 
-def purgeSeenDB(oldness):
-	"""Rids of records older than oldness argument in seendb"""
-	if not os.path.exists(seendb):
-		l.info("Creating empty seen database file %s"%seendb)
-		open(seendb,'a').close()
-		return
-	newseendb = seendb + '.tmp'
-	ns = open(newseendb,'a')
-	now = time.time()
-	for s in open(seendb,'r'):
-		if len(s) >= 52 and int(now - int(s[41:52])) < oldness: ns.write(s)
-		else: l.debug("Expiring (%s)"%s.strip())
-	ns.close()
-	os.remove(seendb)
-	os.rename(newseendb,seendb)
+        # Search for mpeg enclosures
+        for enclosure in filter(lambda x: x.get('type') == 'audio/mpeg',entry.get('enclosures',[])):
+            # Work only with first found audio/mpeg enclosure (Bad Thing? maybe :( )
+            if self._download_enclosure(enclosure, entry, feed, args.no_download):
+                SeenEntry( pub_date=self.pub_date, hashed=self.hashed)
+            break
 
-def entryId(entry):
-	"""Returns ID of entry"""
-	return hashlib.sha1(entry.get('id')).hexdigest()
+    def _download_enclosure(self, enclosure, entry, feed, no_download=False):
+        """Performs downloading of specified file. Returns True on success and False in other case"""
 
-def entryTime(entry):
-	"""Returns tuple in time.localtime() format"""
-	return entry.get('updated_parsed',entry.get('published_parsed',entry.get('created_parsed',time.localtime())))
+        downloadto = TEMPDIR + os.sep + self.hashed
 
-def markEntrySeen(entry):
-	"""Marks entry as seen in seen DB"""
-	eid = entryId(entry)
-	l.info("Marking [%s] (%s) as seen"%(entry.get('title'),eid))
-	open(seendb,'a').write("%s %011i\n"%(eid,int(time.time())))
+        if no_download:
+            l.debug("Would download %s"%enclosure['href'])
+            return True
 
-def isEntrySeen(entry):
-	"""Returns True if entry already seen. False otherwise"""
-	if not os.path.exists(seendb):
-		l.info("Creating empty seen database file %s"%seendb)
-		open(seendb,'a').close()
-		return False
-	eid = entryId(entry)
-	for s in filter(lambda x: len(x) >= 40,open(seendb,'r')):
-		if eid == s[0:40]:
-			l.debug("Already seen: [%s] (%s)"%(entry.get('title'),eid))
-			return True
-	return False
+        try:
+            """Downloads URL to file, returns file name of download (from URL or Content-Disposition)"""
+            if not os.path.exists(os.path.dirname(downloadto)):
+                os.makedirs(os.path.dirname(file),0700)
 
-def isEntryOld(entry, oldness):
-	"""Returns True if entry is too old (defined by oldness variable), False otherwise"""
-	result = False
-	entrytime = entryTime(entry)
-	if (time.time() - time.mktime(entrytime)) > oldness:
-		l.info("Too old for us: [%s] <%s>)"%(entry.get('title'),time.asctime(entrytime)))
-		result = True
-	return result
+            l.debug("Downloading %s"%enclosure['href'])
+            r = requests.get(enclosure['href'], stream=True)
+            with open(downloadto, 'wb') as f:
+                if 'content-length' in r.headers:
+                    total_length = int(r.headers['content-length'])
+                    # print total_length, enclosure['length'] #TODO: which measure is more reliable?
+                    r_iter = progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1)
+                else:
+                    r_iter = r.iter_content(chunk_size=1024)
+                for chunk in r_iter: 
+                    if chunk:
+                        f.write(chunk)
+                        f.flush()
 
-def retrieveURL(url,file):
-	"""Downloads URL to file, returns file name of download (from URL or Content-Disposition)"""
-	if not os.path.exists(os.path.dirname(file)): os.makedirs(os.path.dirname(file),0700)
-	(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(url)
-	filename = path.split("/")[-1]
-	try:
-		l.debug("Downloading {%s} to {%s}"%(url,os.path.basename(file)))
-		r = requests.get(url, stream=True)
-		with open(file, 'wb') as f:
-			total_length = int(r.headers.get('content-length'))
-			for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1): 
-				if chunk:
-					f.write(chunk)
-					f.flush()
-	except Exception, e:
-		l.error("Download exception occured: %s"%e)
-		return False
-	
-	if not filename:
-		filename = "Untitled.mp3"
-	return filename
+            filename = cgi.parse_header(r.headers.get('content-disposition'))[1]['filename']
+            if not filename:
+                filename = "Untitled.mp3"
 
-def downloadEnclosure(enclosure, entry, feed):
-	"""Performs downloading of specified file. Returns True on success and False in other case"""
+        except KeyboardInterrupt:
+            l.info("Download aborted by Ctrl+c")
+            try:
+                user_wish = raw_input("Do you like to mark item as read? (y/N): ")
+                if user_wish in YES:
+                    return True
+            except KeyboardInterrupt:
+                print "No"
+            return False
 
-	# Donloading enclosure to specified file
-	downloadto = tmpdir + os.sep + entryId(entry)
+        # Move downloaded file to its final destination
+        moveto = args.podcastsdir + os.sep + self._generate_filename(filename, entry, feed)
+        l.debug("Moving {%s} to {%s}"%(downloadto,moveto))
+        if not os.path.exists(os.path.dirname(moveto)): os.makedirs(os.path.dirname(moveto),0750)
+        os.rename(downloadto,moveto)
+        return True
 
-	try:
-		filename = retrieveURL(enclosure.get('href'),downloadto)
-	except KeyboardInterrupt:
-		l.info("Download aborted by Ctrl+c")
-		try:
-			user_wish = raw_input("Do you like to mark item as read? (y/N): ")
-			if user_wish in yes:
-				return True
-		except KeyboardInterrupt:
-			print "No"
-		return False
+    def _generate_filename(self, filename, entry, feed):
+        """Generates file name for this enclosure based on config settins"""
+        (year,month,day,hour,minute,second,weekday,yearday,leap) = time.localtime()
+        subst = {
+            'today': '%i-%02i-%02i'%(year,month,day),
+            'entry_date': self.pub_date.date().isoformat(),
+            'id': self.id,
+            'entry_title': re.sub(BADFNCHARS,'_',entry.get('title')),
+            'feed_href': re.sub(BADFNCHARS,'_',feed.href.split('://')[-1]),
+            'feed_title': re.sub(BADFNCHARS,'_',feed.feed.get('title',feed.href)),
+            'original_filename': re.sub(BADFNCHARS,'_',filename),
+        }
+        return FILENAME.format(subst)
 
-	if not filename: return False
+def process_feed(url):
+    feed = feedparser.parse(url)
 
-	# Move downloaded file to its final destination
-	moveto = podcastsdir + os.sep + generateFileName(filename, entry, feed)
-	l.debug("Moving {%s} to {%s}"%(downloadto,moveto))
-	if not os.path.exists(os.path.dirname(moveto)): os.makedirs(os.path.dirname(moveto),0750)
-	os.rename(downloadto,moveto)
-	return True
+    if feed.bozo and isinstance(feed.bozo_exception, 
+                                (type(feedparser.NonXMLContentType), type(feedparser.CharacterEncodingOverride))):
+        l.error("Erroneous feed URL: %s (%s)"%(url, type(feed.bozo_exception)))
+        return
 
-def generateFileName(filename, entry, feed):
-	"""Generates file name for this enclosure based on config settins"""
-	(year,month,day,hour,minute,second,weekday,yearday,leap) = time.localtime()
-	subst = { 
-		'today': '%i-%02i-%02i'%(year,month,day),
-		'entry_date': '%i-%02i-%02i'%entryTime(entry)[0:3],
-		'id': entryId(entry),
-		'entry_title': re.sub(badfnchars,'_',entry.get('title')),
-		'feed_href': re.sub(badfnchars,'_',feed.href.split('://')[-1]),
-		'feed_title': re.sub(badfnchars,'_',feed.feed.get('title',feed.href)),
-		'original_filename': re.sub(badfnchars,'_',filename),
-	}
-	return c.get('DEFAULT','filename',vars=subst)
+    l.info("Checking feed: %s"%feed.feed.title)
+    
+    feed.entries.reverse()
+    for entry in feed.entries:
+        EntryProcessor(entry, feed)
 
-def manageEntry(entry, feed):
-	"""We'll deal with this entry"""
-	
-	# Let's check if we worked on this entry earlier...
-	if isEntrySeen(entry): return
-	
-	# Let's check the entry's date
-	if isEntryOld(entry, int(c.get('DEFAULT','oldness'))):
-		markEntrySeen(entry)
-		return
+def init():
+    if not os.path.exists(args.basedir):
+        l.info("Creating base dir %s"%args.basedir)
+        os.makedirs(args.basedir,0700)
 
-	# This post is neither seen, nor too old for us.
-	l.info("Recent podcast: [%s]"%(entry.get('title')))
-	# Search for mpeg enclosures
-	for enclosure in filter(lambda x: x.get('type') == 'audio/mpeg',entry.get('enclosures',[])):
-		# Work only with first found audio/mpeg enclosure (Bad Thing? maybe :( )
-		if downloadEnclosure(enclosure,entry,feed): markEntrySeen(entry)
-		break
+    subscriptions = args.basedir + os.sep + 'subscriptions'
+    if not os.path.exists(subscriptions):
+        l.info("Creating empty subscriptions file %s"%subscriptions)
+        open(subscriptions,'a').write("# Add your RSS/ATOM subscriptions here.\n\n")
 
-def manageFeed(url):
-	"""Let's deal with this podcast feed"""
-	feed = feedparser.parse(url)
-	allowed_exceptions = [type(feedparser.CharacterEncodingOverride()), type(feedparser.NonXMLContentType())]
-	if feed.bozo and type(feed.bozo_exception) not in allowed_exceptions:
-		l.error("Erroneous feed URL: %s (%s)"%(url,feed.bozo_exception))
-		return
-	l.info("Checking feed: {%s}"%feed.feed.title)
-	if c.get('DEFAULT','reverseorder') in yes:
-		feed.entries.reverse()
-	for entry in feed.entries: manageEntry(entry, feed)
+    SeenEntry._connection = sqlite.builder()(expanduser(args.basedir + '/seen.sqlite'), debug=False)
+    SeenEntry.createTable(ifNotExists=True)
+
 
 if __name__ == '__main__':
-	Entry.createTable(ifNotExists=True)
-	print Entry.select().count()
-	print 'ok'
-	sys.exit()
+    init()
 
-
-	# Initializing logging
-	l = logging.Logger('upodder',int(c.get('DEFAULT','loglevel')))
-
-	if c.get('DEFAULT','logtoconsole') in yes:
-		stderrHandler = logging.StreamHandler()
-		stderrHandler.setFormatter(logging.Formatter('%(message)s'))
-		l.addHandler(stderrHandler)
-
-	if c.get('DEFAULT','logtofile') in yes:
-		fileHandler = logging.FileHandler(expanduser(c.get('DEFAULT','logfile')),'a')
-		fileHandler.setFormatter(logging.Formatter('%(asctime)s %(name)s (%(levelname)s): %(message)s'))
-		l.addHandler(fileHandler)
-
-	# Initializing necessary files and directories
-	basedir =	expanduser(c.get('DEFAULT','basedir'))
-	podcastsdir =	expanduser(c.get('DEFAULT','podcastsdir'))
-	tmpdir =	expanduser(c.get('DEFAULT','tmpdir'))
-	subscriptions =	expanduser(c.get('DEFAULT','subscriptions'))
-	seendb =	expanduser(c.get('DEFAULT','seendb'))
-
-	if not os.path.exists(basedir):
-		l.info("Creating base dir %s"%basedir)
-		os.makedirs(basedir,0700)
-
-	if not os.path.exists(subscriptions):
-		l.info("Creating empty subscriptions file %s"%subscriptions)
-		open(subscriptions,'a').write("# Add your RSS/ATOM subscriptions here.\n\n")
-
-	#Processing feed URLs
-	for url in map(lambda x: x.strip(), open(subscriptions)):
-		if not url: continue
-		if url[0] in configcomment: continue
-		manageFeed(url)
-
-	l.info("Purging seendb")
-	purgeSeenDB(int(c.get('DEFAULT','oldness') * 2))
+    for url in map(lambda x: x.strip(), open(args.basedir + os.sep + 'subscriptions')):
+        if not url or url[0] in CONFIGCOMMENT:
+            process_feed(url)
 
