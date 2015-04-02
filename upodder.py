@@ -19,11 +19,11 @@ parser.add_argument('--no-download', action='store_true',
                    help="Don't download any files. Just mark as read.")
 parser.add_argument('--podcastdir', '-p', default='~/Downloads/podcasts', 
     help="Folder to download podcast files to.")
-parser.add_argument('--basedir', '-b', default='/.upodder', 
+parser.add_argument('--basedir', '-b', default='~/.upodder', 
     help="Folder to store subscriptions and seen database.")
 parser.add_argument('--oldness', '-o', default=30, 
     help="Skip entries older than X days.")
-parser.add_argument('--mark-seen', action='store_false',
+parser.add_argument('--mark-seen', action='store_true',
     help="Just mark all entries as seen and exit.")
 parser.add_argument('--log-level', '-l', default=5, 
     help="Logging level. 5=Debug.")
@@ -54,6 +54,7 @@ class EntryProcessor(object):
 
         if args.mark_seen:
             SeenEntry(pub_date=self.pub_date, hashed=self.hashed)
+            l.debug("Marking as seen: %s"%(entry['title']))
             return
 
         # Let's check if we worked on this entry earlier...
@@ -85,7 +86,7 @@ class EntryProcessor(object):
         try:
             """Downloads URL to file, returns file name of download (from URL or Content-Disposition)"""
             if not os.path.exists(os.path.dirname(downloadto)):
-                os.makedirs(os.path.dirname(file),0700)
+                os.makedirs(os.path.dirname(downloadto),0700)
 
             l.debug("Downloading %s"%enclosure['href'])
             r = requests.get(enclosure['href'], stream=True)
@@ -151,23 +152,25 @@ def process_feed(url):
         EntryProcessor(entry, feed)
 
 def init():
-    if not os.path.exists(args.basedir):
+    if not os.path.exists(expanduser(args.basedir)):
         l.info("Creating base dir %s"%args.basedir)
-        os.makedirs(args.basedir,0700)
+        os.makedirs(expanduser(args.basedir), 0700)
 
-    subscriptions = args.basedir + os.sep + 'subscriptions'
+    subscriptions = expanduser(args.basedir) + os.sep + 'subscriptions'
     if not os.path.exists(subscriptions):
         l.info("Creating empty subscriptions file %s"%subscriptions)
         open(subscriptions,'a').write("# Add your RSS/ATOM subscriptions here.\n\n")
 
-    SeenEntry._connection = sqlite.builder()(expanduser(args.basedir + '/seen.sqlite'), debug=False)
+    SeenEntry._connection = sqlite.builder()(expanduser(args.basedir + os.sep + 'seen.sqlite'), debug=False)
     SeenEntry.createTable(ifNotExists=True)
 
 
 if __name__ == '__main__':
     init()
 
-    for url in map(lambda x: x.strip(), open(args.basedir + os.sep + 'subscriptions')):
-        if not url or url[0] in CONFIGCOMMENT:
+    for url in map(lambda x: x.strip(), open(expanduser(args.basedir) + os.sep + 'subscriptions')):
+        if url and url[0] not in CONFIGCOMMENT:
             process_feed(url)
+    
+    l.info('Done updating feeds.')
 
