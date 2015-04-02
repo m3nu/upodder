@@ -12,7 +12,6 @@ I've been using this script for several years and the project seems abandoned on
 - use the more reliable `requests` library for downloading
 - use command line arguments instead of the `.ini` file.
 
-
 To quote the original author, Stas Vitkovsky and his motivation:
 
 "I needed a simple console podcast downloader.
@@ -22,3 +21,14 @@ I did not find any one suitable for my needs (podracer lacked ATOM support, hpod
 My usage scenario is to download unseen enclosures, place them in the folder with a name ~/podcasts/%d-%m-%Y/{somename}.mp3 (like podracer does) and then rsync them to my MP3 player.
 
 Also, I wrote a bash script, which mounts my player with pmount-hal, calls podracer, rsyncs my player and unmounts it safely."
+
+## Installation
+
+At some point this app will be available on pypi. Until then, clone this repository, install requirements from `requirements.txt` and add upodder.py in your `PATH`.
+
+```
+git clone https://github.com/manuelRiel/upodder
+cd upodder
+pip install -r requirements.txt
+./upodder
+```
