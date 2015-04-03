@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+from __future__ import print_function
 import feedparser
 import time
 import hashlib
@@ -7,13 +7,17 @@ import os
 from os.path import expanduser
 import logging
 import re
-import cgi
 import requests
 import argparse
 from datetime import datetime as dt
 from clint.textui import progress
 from sqlobject import SQLObject, sqlite, DateTimeCol, UnicodeCol
 
+# python2 compat
+try: input = raw_input
+except NameError: pass
+
+# TODO expanduser as action? https://gist.github.com/brantfaircloth/1252339
 parser = argparse.ArgumentParser(description='Download podcasts via the command line.')
 parser.add_argument('--no-download', action='store_true',
                    help="Don't download any files. Just mark as read.")
@@ -33,7 +37,7 @@ YES = [1,"1","on","yes","Yes","YES","y","Y","true","True","TRUE","t","T"]
 CONFIGCOMMENT = ['#',';','$',':','"',"'"]
 BADFNCHARS = re.compile('[^\w]+',re.LOCALE)
 TEMPDIR = '/tmp/upodder'
-FILENAME = '%(entry_title)s.mp3'
+FILENAME = '{entry_title}.mp3'
 
 # Initializing logging
 l = logging.Logger('upodder', logging.DEBUG)
@@ -86,7 +90,7 @@ class EntryProcessor(object):
         try:
             """Downloads URL to file, returns file name of download (from URL or Content-Disposition)"""
             if not os.path.exists(os.path.dirname(downloadto)):
-                os.makedirs(os.path.dirname(downloadto),0700)
+                os.makedirs(os.path.dirname(downloadto))
 
             l.debug("Downloading %s"%enclosure['href'])
             r = requests.get(enclosure['href'], stream=True)
@@ -102,40 +106,39 @@ class EntryProcessor(object):
                         f.write(chunk)
                         f.flush()
 
-            filename = cgi.parse_header(r.headers.get('content-disposition'))[1]['filename']
-            if not filename:
-                filename = "Untitled.mp3"
+            # filename = cgi.parse_header(r.headers.get('content-disposition'))[1]['filename']
+            # if not filename:
+            #     filename = "Untitled.mp3"
 
         except KeyboardInterrupt:
             l.info("Download aborted by Ctrl+c")
             try:
-                user_wish = raw_input("Do you like to mark item as read? (y/N): ")
+                user_wish = input("Do you like to mark item as read? (y/N): ")
                 if user_wish in YES:
                     return True
             except KeyboardInterrupt:
-                print "No"
+                print("No")
             return False
 
         # Move downloaded file to its final destination
-        moveto = args.podcastsdir + os.sep + self._generate_filename(filename, entry, feed)
+        moveto = expanduser(args.podcastdir) + os.sep + self._generate_filename(entry, feed)
         l.debug("Moving {%s} to {%s}"%(downloadto,moveto))
-        if not os.path.exists(os.path.dirname(moveto)): os.makedirs(os.path.dirname(moveto),0750)
-        os.rename(downloadto,moveto)
+        if not os.path.exists(os.path.dirname(moveto)): os.makedirs(os.path.dirname(moveto))
+        os.rename(downloadto, moveto)
         return True
 
-    def _generate_filename(self, filename, entry, feed):
+    def _generate_filename(self, entry, feed):
         """Generates file name for this enclosure based on config settins"""
         (year,month,day,hour,minute,second,weekday,yearday,leap) = time.localtime()
         subst = {
             'today': '%i-%02i-%02i'%(year,month,day),
             'entry_date': self.pub_date.date().isoformat(),
-            'id': self.id,
+            'id': self.hashed,
             'entry_title': re.sub(BADFNCHARS,'_',entry.get('title')),
             'feed_href': re.sub(BADFNCHARS,'_',feed.href.split('://')[-1]),
             'feed_title': re.sub(BADFNCHARS,'_',feed.feed.get('title',feed.href)),
-            'original_filename': re.sub(BADFNCHARS,'_',filename),
         }
-        return FILENAME.format(subst)
+        return FILENAME.format(**subst)
 
 def process_feed(url):
     feed = feedparser.parse(url)
@@ -154,7 +157,7 @@ def process_feed(url):
 def init():
     if not os.path.exists(expanduser(args.basedir)):
         l.info("Creating base dir %s"%args.basedir)
-        os.makedirs(expanduser(args.basedir), 0700)
+        os.makedirs(expanduser(args.basedir))
 
     subscriptions = expanduser(args.basedir) + os.sep + 'subscriptions'
     if not os.path.exists(subscriptions):
@@ -164,8 +167,7 @@ def init():
     SeenEntry._connection = sqlite.builder()(expanduser(args.basedir + os.sep + 'seen.sqlite'), debug=False)
     SeenEntry.createTable(ifNotExists=True)
 
-
-if __name__ == '__main__':
+def main():
     init()
 
     for url in map(lambda x: x.strip(), open(expanduser(args.basedir) + os.sep + 'subscriptions')):
@@ -173,4 +175,8 @@ if __name__ == '__main__':
             process_feed(url)
     
     l.info('Done updating feeds.')
+
+
+if __name__ == '__main__':
+    main()
 
