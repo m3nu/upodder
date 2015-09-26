@@ -9,6 +9,7 @@ import logging
 import re
 import requests
 import argparse
+import shutil # To get around "cross-device" rename error when moving to dest. dir.
 from datetime import datetime as dt
 from clint.textui import progress
 from sqlobject import SQLObject, sqlite, DateTimeCol, UnicodeCol
@@ -37,7 +38,7 @@ YES = [1,"1","on","yes","Yes","YES","y","Y","true","True","TRUE","t","T"]
 CONFIGCOMMENT = ['#',';','$',':','"',"'"]
 BADFNCHARS = re.compile('[^\w]+',re.LOCALE)
 TEMPDIR = '/tmp/upodder'
-FILENAME = '{entry_title}.mp3'
+FILENAME = '{entry_title}.{filename_extension}'
 
 # Initializing logging
 l = logging.Logger('upodder', logging.DEBUG)
@@ -72,8 +73,12 @@ class EntryProcessor(object):
             return
 
         # Search for mpeg enclosures
-        for enclosure in filter(lambda x: x.get('type') == 'audio/mpeg',entry.get('enclosures',[])):
-            # Work only with first found audio/mpeg enclosure (Bad Thing? maybe :( )
+        for enclosure in filter(lambda x: x.get('type') in ['audio/mpeg','video/x-m4v'] ,entry.get('enclosures',[])):
+            # Work only with first found audio/mpeg or video/x-m4v enclosure (Bad Thing? maybe :( )
+
+            # copy enclosure.type to entry.type for generate_filename processing.
+            entry['type'] = enclosure.get('type')
+            
             if self._download_enclosure(enclosure, entry, feed, args.no_download):
                 SeenEntry( pub_date=self.pub_date, hashed=self.hashed)
             break
@@ -124,11 +129,12 @@ class EntryProcessor(object):
         moveto = expanduser(args.podcastdir) + os.sep + self._generate_filename(entry, feed)
         l.debug("Moving {%s} to {%s}"%(downloadto,moveto))
         if not os.path.exists(os.path.dirname(moveto)): os.makedirs(os.path.dirname(moveto))
-        os.rename(downloadto, moveto)
+        shutil.move(downloadto, moveto)
         return True
 
     def _generate_filename(self, entry, feed):
-        """Generates file name for this enclosure based on config settins"""
+        """Generates file name for this enclosure based on config settins
+           Added filename_extension dict mapping to handle different file types."""
         (year,month,day,hour,minute,second,weekday,yearday,leap) = time.localtime()
         subst = {
             'today': '%i-%02i-%02i'%(year,month,day),
@@ -137,6 +143,7 @@ class EntryProcessor(object):
             'entry_title': re.sub(BADFNCHARS,'_',entry.get('title')),
             'feed_href': re.sub(BADFNCHARS,'_',feed.href.split('://')[-1]),
             'feed_title': re.sub(BADFNCHARS,'_',feed.feed.get('title',feed.href)),
+            'filename_extension': {'audio/mpeg': 'mp3', 'video/x-m4v': 'm4v',}.get(entry.get('type')),
         }
         return FILENAME.format(**subst)
 
