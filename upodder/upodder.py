@@ -46,6 +46,16 @@ stderrHandler = logging.StreamHandler()
 stderrHandler.setFormatter(logging.Formatter('%(message)s'))
 l.addHandler(stderrHandler)
 
+# Dict of possible file types
+FILE_TYPES = {
+    'audio/mpeg': 'mp3', 
+    'video/x-m4v': 'm4v', 
+    'audio/x-opus': 'opus', 
+    'audio/x-ogg': 'ogg',
+    'audio/aac': 'aac',
+    'audio/mp4': 'm4a',
+    }
+
 class SeenEntry(SQLObject):
     "Represents a single feed item, seen before. Used to keep track of download status."
     hashed = UnicodeCol()
@@ -73,7 +83,7 @@ class EntryProcessor(object):
             return
 
         # Search for mpeg enclosures
-        for enclosure in filter(lambda x: x.get('type') in ['audio/mpeg','video/x-m4v'] ,entry.get('enclosures',[])):
+        for enclosure in filter(lambda x: x.get('type') in FILE_TYPES.keys() ,entry.get('enclosures',[])):
             # Work only with first found audio/mpeg or video/x-m4v enclosure (Bad Thing? maybe :( )
 
             # copy enclosure.type to entry.type for generate_filename processing.
@@ -143,7 +153,7 @@ class EntryProcessor(object):
             'entry_title': re.sub(BADFNCHARS,'_',entry.get('title')),
             'feed_href': re.sub(BADFNCHARS,'_',feed.href.split('://')[-1]),
             'feed_title': re.sub(BADFNCHARS,'_',feed.feed.get('title',feed.href)),
-            'filename_extension': {'audio/mpeg': 'mp3', 'video/x-m4v': 'm4v',}.get(entry.get('type')),
+            'filename_extension': FILE_TYPES.get(entry.get('type')),
         }
         return FILENAME.format(**subst)
 

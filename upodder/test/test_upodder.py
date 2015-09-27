@@ -1,7 +1,7 @@
 import unittest
 import shutil
 
-import upodder
+from upodder import upodder
 
 BASEDIR = '/tmp/upodder_testing'
 
@@ -18,12 +18,15 @@ class TestUpodder(unittest.TestCase):
                 "http://neusprech.org/feed/",
                 "http://www.davidbarrkirtley.com/podcast/geeksguideshow.xml",
                 "http://www.cbc.ca/cmlink/1.2919550",
-                "http://www.sciencefriday.com/feed/scifriall.xml"
+                "http://www.sciencefriday.com/feed/scifriall.xml",
+                "http://feeds.feedburner.com/binaergewitter-podcast-opus",
+                "http://lila-podcast.de/feed/opus/",
             ]
 
     def setUp(self):
         upodder.args.no_download = True
         upodder.args.mark_seen = False
+        upodder.args.oldness = 720
         upodder.args.basedir = BASEDIR
         upodder.init()
 
