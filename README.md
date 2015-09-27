@@ -29,3 +29,9 @@ I did not find any one suitable for my needs (podracer lacked ATOM support, hpod
 My usage scenario is to download unseen enclosures, place them in the folder with a name ~/podcasts/%d-%m-%Y/{somename}.mp3 (like podracer does) and then rsync them to my MP3 player.
 
 Also, I wrote a bash script, which mounts my player with pmount-hal, calls podracer, rsyncs my player and unmounts it safely."
+
+## Further Contributors
+
+- *akira (gaspar0069)*: Add support for multiple file extensions and fix file move bug.
+
+

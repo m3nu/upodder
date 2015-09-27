@@ -21,6 +21,8 @@ class TestUpodder(unittest.TestCase):
                 "http://www.sciencefriday.com/feed/scifriall.xml",
                 "http://feeds.feedburner.com/binaergewitter-podcast-opus",
                 "http://lila-podcast.de/feed/opus/",
+                "http://podcastfeeds.nbcnews.com/audio/podcast/MSNBC-MADDOW-NETCAST-M4V.xml",
+                "http://feeds.feedburner.com/uhhyeahdude/podcast",
             ]
 
     def setUp(self):
