@@ -1,0 +1,20 @@
+dependencies:
+  override:
+    # - git config --global user.email $GIT_EMAIL
+    # - git config --global user.name $GIT_NAME
+    # - git config --global push.default matching
+    - pyenv global 2.7.9 3.5.0 3.4.3
+    - pip install -U bumpversion twine tox
+
+# test:
+#   override:
+#     - tox
+
+# deployment:
+#   pypi_prod:
+#     branch: master
+#     commands:
+#       - bumpversion patch
+#       - git push --tags
+#       - python setup.py sdist bdist_egg
+#       - twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/*
