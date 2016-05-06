@@ -2,6 +2,8 @@
 
 #Simple podcast downloader
 
+[![Circle CI](https://circleci.com/gh/m3nu/upodder.svg?style=svg)](https://circleci.com/gh/m3nu/upodder)
+
 A simple command-line podcast downloader. Can be run from cron. Simply add your RSS feeds in `~/.upodder/subscriptions` and watch your latest podcasts come in. Destination dir, filename, folder structures, etc can all be customized.
 
 Please report any bugs on [Github](https://github.com/manuelRiel/upodder). I will promptly fix them.
