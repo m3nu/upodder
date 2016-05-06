@@ -32,6 +32,10 @@ class TestUpodder(unittest.TestCase):
         upodder.args.basedir = BASEDIR
         upodder.init()
 
+    def tearDown(cls):
+        shutil.rmtree(BASEDIR);
+
+class TestFeedProcessing(TestUpodder):
     def test_feedparsing(self):
         for f in self.feeds:
             upodder.process_feed(f)
@@ -43,8 +47,6 @@ class TestUpodder(unittest.TestCase):
 
         self.assertGreater(upodder.SeenEntry.select().count(), 5)
 
-    def tearDown(cls):
-        shutil.rmtree(BASEDIR);
 
 class TestFailingFeeds(TestUpodder):
     def test_failing_feed(self):

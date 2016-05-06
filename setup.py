@@ -27,7 +27,8 @@ setup(
             'clint',
             'requests',
             'feedparser',
-            'sqlobject >=3.0.0a2dev-20151224'
+            'sqlobject >=3.0.0a2dev-20151224',
+            'formencode >= 1.3.0'
             ],
         classifiers=[
             'Development Status :: 4 - Beta',
@@ -36,11 +37,10 @@ setup(
             'License :: OSI Approved :: MIT License',
             'Operating System :: Unix',
             'Programming Language :: Python',
-            'Programming Language :: Python :: 2.6',
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3',
-            'Programming Language :: Python :: 3.3',
             'Programming Language :: Python :: 3.4',
+            'Programming Language :: Python :: 3.5',
             'Topic :: Internet :: WWW/HTTP :: Dynamic Content :: News/Diary',
             ],
         )
