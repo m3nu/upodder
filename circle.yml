@@ -10,6 +10,7 @@ test:
   override:
     - tox -e py27
     - rm -rf .tox
+    - rm -rf ~/.cache/pip
     - tox -e py34,py35
 
 # deployment:

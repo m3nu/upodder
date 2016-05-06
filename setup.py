@@ -2,21 +2,13 @@ import re
 import ast
 from setuptools import setup
 
-_version_re = re.compile(r'__version__\s+=\s+(.*)')
-
-with open('upodder/__init__.py', 'rb') as f:
-    version = str(ast.literal_eval(_version_re.search(
-        f.read().decode('utf-8')).group(1)))
-
-
 description = 'Command Line Podcast Downloader'
-
 
 setup(
         name='upodder',
         author='"Stan Vitkovskiy, Manuel Riel"',
         author_email='stas.vitkovsky[at]gmail.com, manu[at]vlx.cc',
-        version=version,
+        version='0.6',
         license='LICENSE.txt',
         url='https://github.com/manuelRiel/upodder',
         description=description,
@@ -28,7 +20,6 @@ setup(
             'requests',
             'feedparser',
             'sqlobject >=3.0.0a2dev-20151224',
-            'formencode >= 1.3.0'
             ],
         classifiers=[
             'Development Status :: 4 - Beta',
