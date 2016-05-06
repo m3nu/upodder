@@ -6,9 +6,11 @@ dependencies:
     - pyenv global 2.7.9 3.5.0 3.4.3
     - pip install -U bumpversion twine tox
 
-# test:
-#   override:
-#     - tox
+test:
+  override:
+    - tox -e py27
+    - rm -rf .tox
+    - tox -e py34,py35
 
 # deployment:
 #   pypi_prod:
