@@ -4,6 +4,7 @@ import feedparser
 import time
 import hashlib
 import os
+import sys
 from os.path import expanduser
 import logging
 import re
@@ -108,7 +109,7 @@ class EntryProcessor(object):
                 os.makedirs(os.path.dirname(downloadto))
 
             l.debug("Downloading %s"%enclosure['href'])
-            r = requests.get(enclosure['href'], stream=True)
+            r = requests.get(enclosure['href'], stream=True, timeout=25)
             with open(downloadto, 'wb') as f:
                 if 'content-length' in r.headers:
                     total_length = int(r.headers['content-length'])
@@ -128,12 +129,14 @@ class EntryProcessor(object):
         except KeyboardInterrupt:
             l.info("Download aborted by Ctrl+c")
             try:
-                user_wish = input("Do you like to mark item as read? (y/N): ")
+                user_wish = input("Do you like to mark item as read? (y/n) or quit? (Ctrl+c): ")
                 if user_wish in YES:
                     return True
+                else:
+                    return False
             except KeyboardInterrupt:
-                print("No")
-            return False
+                print("\nQuitting")
+                sys.exit()
 
         # Move downloaded file to its final destination
         moveto = expanduser(args.podcastdir) + os.sep + self._generate_filename(entry, feed)
@@ -160,9 +163,15 @@ class EntryProcessor(object):
 def process_feed(url):
     feed = feedparser.parse(url)
 
+    # Not all bozo errors cause total failure
     if feed.bozo and isinstance(feed.bozo_exception, 
                                 (type(feedparser.NonXMLContentType), type(feedparser.CharacterEncodingOverride))):
         l.error("Erroneous feed URL: %s (%s)"%(url, type(feed.bozo_exception)))
+        return
+
+    # When parsing a website or error message, title is missing.
+    if 'title' not in feed.feed:
+        l.error("Erroneous feed URL: %s" % url)
         return
 
     l.info("Checking feed: %s"%feed.feed.title)

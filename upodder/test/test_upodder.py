@@ -32,19 +32,23 @@ class TestUpodder(unittest.TestCase):
         upodder.args.basedir = BASEDIR
         upodder.init()
 
-    def test_feedparsing(self):
-        for f in self.feeds:
-            upodder.process_feed(f)
+    # def test_feedparsing(self):
+    #     for f in self.feeds:
+    #         upodder.process_feed(f)
 
-    def test_mark_seen(self):
-        upodder.args.mark_seen = True
-        for f in self.feeds:
-            upodder.process_feed(f)
+    # def test_mark_seen(self):
+    #     upodder.args.mark_seen = True
+    #     for f in self.feeds:
+    #         upodder.process_feed(f)
 
-        self.assertGreater(upodder.SeenEntry.select().count(), 5)
+    #     self.assertGreater(upodder.SeenEntry.select().count(), 5)
 
     def tearDown(cls):
         shutil.rmtree(BASEDIR);
+
+class TestFailingFeeds(TestUpodder):
+    def test_failing_feed(self):
+        upodder.process_feed('http://www.google.com')
 
 if __name__ == '__main__':
     unittest.main()
