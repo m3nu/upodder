@@ -100,7 +100,7 @@ class EntryProcessor(object):
         downloadto = TEMPDIR + os.sep + self.hashed
 
         if no_download:
-            l.debug("Would download %s"%enclosure['href'])
+            l.debug("Would download %s from %s" % (entry['title'], enclosure['href']))
             return True
 
         try:
@@ -108,7 +108,7 @@ class EntryProcessor(object):
             if not os.path.exists(os.path.dirname(downloadto)):
                 os.makedirs(os.path.dirname(downloadto))
 
-            l.debug("Downloading %s"%enclosure['href'])
+            l.debug("Downloading %s from %s" % (entry['title'], enclosure['href']))
             r = requests.get(enclosure['href'], stream=True, timeout=25)
             with open(downloadto, 'wb') as f:
                 if 'content-length' in r.headers:
@@ -161,6 +161,7 @@ class EntryProcessor(object):
         return FILENAME.format(**subst)
 
 def process_feed(url):
+    l.info('Downloading feed: %s' % url)
     feed = feedparser.parse(url)
 
     # Not all bozo errors cause total failure
@@ -174,7 +175,7 @@ def process_feed(url):
         l.error("Erroneous feed URL: %s" % url)
         return
 
-    l.info("Checking feed: %s"%feed.feed.title)
+    l.info("Parsing feed: %s"%feed.feed.title)
     
     feed.entries.reverse()
     for entry in feed.entries:
