@@ -27,11 +27,11 @@ parser.add_argument('--podcastdir', '-p', default='~/Downloads/podcasts',
     help="Folder to download podcast files to.")
 parser.add_argument('--basedir', '-b', default='~/.upodder', 
     help="Folder to store subscriptions and seen database.")
-parser.add_argument('--oldness', '-o', default=30, 
+parser.add_argument('--oldness', '-o', default=30, type=int,
     help="Skip entries older than X days.")
 parser.add_argument('--mark-seen', action='store_true',
     help="Just mark all entries as seen and exit.")
-parser.add_argument('--log-level', '-l', default=5, 
+parser.add_argument('--log-level', '-l', default=5, type=int,
     help="Logging level. 5=Debug.")
 args = parser.parse_args()
 
