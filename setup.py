@@ -8,7 +8,7 @@ setup(
         name='upodder',
         author='"Stan Vitkovskiy, Manuel Riel"',
         author_email='stas.vitkovsky[at]gmail.com, manu[at]vlx.cc',
-        version='0.6.2',
+        version='0.6.3',
         license='LICENSE.txt',
         url='https://github.com/manuelRiel/upodder',
         description=description,
