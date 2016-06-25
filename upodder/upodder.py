@@ -31,8 +31,8 @@ parser.add_argument('--oldness', '-o', default=30,
     help="Skip entries older than X days.")
 parser.add_argument('--mark-seen', action='store_true',
     help="Just mark all entries as seen and exit.")
-parser.add_argument('--log-level', '-l', default=5, 
-    help="Logging level. 5=Debug.")
+parser.add_argument("--quiet", help="Only output errors.",
+                    action="store_true")
 args = parser.parse_args()
 
 YES = [1,"1","on","yes","Yes","YES","y","Y","true","True","TRUE","t","T"]
@@ -42,9 +42,12 @@ TEMPDIR = '/tmp/upodder'
 FILENAME = '{entry_title}.{filename_extension}'
 
 # Initializing logging
-l = logging.Logger('upodder', logging.DEBUG)
+if args.quiet:
+    l = logging.Logger('upodder', logging.ERROR)
+else:
+    l = logging.Logger('upodder', logging.DEBUG)
 stderrHandler = logging.StreamHandler()
-stderrHandler.setFormatter(logging.Formatter('%(message)s'))
+# stderrHandler.setFormatter(logging.Formatter('%(message)s'))
 l.addHandler(stderrHandler)
 
 # Dict of possible file types
