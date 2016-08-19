@@ -7,6 +7,7 @@ BASEDIR = '/tmp/upodder_testing'
 
 class TestUpodder(unittest.TestCase):
     feeds = [
+                "https://www.relay.fm/clockwise/feed",
                 "http://popupchinese.com/feeds/custom/sinica",
                 "http://www.radiolab.org/feeds/podcast/",
                 "http://99percentinvisible.org/feed/",

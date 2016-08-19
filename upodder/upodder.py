@@ -58,6 +58,7 @@ FILE_TYPES = {
     'audio/x-ogg': 'ogg',
     'audio/aac': 'aac',
     'audio/mp4': 'm4a',
+    'audio/mp3': 'mp3'
     }
 
 class SeenEntry(SQLObject):
