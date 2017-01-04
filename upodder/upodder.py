@@ -37,7 +37,7 @@ args = parser.parse_args()
 
 YES = [1,"1","on","yes","Yes","YES","y","Y","true","True","TRUE","t","T"]
 CONFIGCOMMENT = ['#',';','$',':','"',"'"]
-BADFNCHARS = re.compile('[^\w]+',re.LOCALE)
+BADFNCHARS = re.compile(r'[^\w]+')
 TEMPDIR = '/tmp/upodder'
 FILENAME = '{entry_title}.{filename_extension}'
 
