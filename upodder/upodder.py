@@ -12,8 +12,8 @@ import requests
 import argparse
 import shutil # To get around "cross-device" rename error when moving to dest. dir.
 from datetime import datetime as dt
-from clint.textui import progress
 from sqlobject import SQLObject, sqlite, DateTimeCol, UnicodeCol
+from tqdm import tqdm
 
 # python2 compat
 try: input = raw_input
@@ -114,17 +114,23 @@ class EntryProcessor(object):
 
             l.debug("Downloading %s from %s" % (entry['title'], enclosure['href']))
             r = requests.get(enclosure['href'], stream=True, timeout=25)
+
             with open(downloadto, 'wb') as f:
                 if 'content-length' in r.headers:
                     total_length = int(r.headers['content-length'])
-                    # print total_length, enclosure['length'] #TODO: which measure is more reliable?
-                    r_iter = progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1)
+                    with tqdm(total=total_length, 
+                              unit="B", 
+                              unit_scale=True,
+                              ncols=90) as pbar:
+                        for chunk in r.iter_content(1024):
+                            f.write(chunk)
+                            if chunk:
+                                pbar.update(len(chunk))
                 else:
-                    r_iter = r.iter_content(chunk_size=1024)
-                for chunk in r_iter: 
-                    if chunk:
-                        f.write(chunk)
-                        f.flush()
+                    for chunk in r.iter_content(1024):
+                        if chunk:
+                            f.write(chunk)
+                            f.flush()
 
             # filename = cgi.parse_header(r.headers.get('content-disposition'))[1]['filename']
             # if not filename:
