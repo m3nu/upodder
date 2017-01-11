@@ -2,3 +2,4 @@ clint
 requests
 feedparser
 sqlobject
+tqdm
