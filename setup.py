@@ -7,10 +7,10 @@ description = 'Command Line Podcast Downloader'
 setup(
         name='upodder',
         author='"Stan Vitkovskiy, Manuel Riel"',
-        author_email='stas.vitkovsky[at]gmail.com, manu[at]vlx.cc',
+        author_email='stas.vitkovsky[at]gmail.com, manu[at]snapdragon.cc',
         version='0.6.10',
         license='LICENSE.txt',
-        url='https://github.com/manuelRiel/upodder',
+        url='https://github.com/m3nu/upodder',
         description=description,
         packages=['upodder', 'upodder.test'],
         entry_points={'console_scripts': ['upodder = upodder.upodder:main']},
