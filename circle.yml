@@ -17,8 +17,7 @@ deployment:
   pypi_prod:
     branch: master
     commands:
-      - bumpversion patch
-      - git push origin master --tags
       - python setup.py sdist bdist_egg
       - twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD --config-file .pypirc dist/*
-#      - twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/*
+      - bumpversion patch
+      - git push origin master --tags
