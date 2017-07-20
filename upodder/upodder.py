@@ -52,9 +52,10 @@ l.addHandler(stderrHandler)
 
 # Dict of possible file types
 FILE_TYPES = {
-    'audio/mpeg': 'mp3', 
-    'video/x-m4v': 'm4v', 
-    'audio/x-opus': 'opus', 
+    'audio/mpeg': 'mp3',
+    'audio/x-m4a': 'm4a',
+    'video/x-m4v': 'm4v',
+    'audio/x-opus': 'opus',
     'audio/x-ogg': 'ogg',
     'audio/aac': 'aac',
     'audio/mp4': 'm4a',
