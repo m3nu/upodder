@@ -20,7 +20,8 @@ setup(
             'requests',
             'feedparser',
             'sqlobject >=3.0.0a2dev-20151224',
-            'tqdm'
+            'tqdm',
+            'listparser'
             ],
         classifiers=[
             'Development Status :: 4 - Beta',
