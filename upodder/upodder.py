@@ -202,6 +202,7 @@ def import_opml(subscriptions, opml):
         for feed in result.feeds:
             print("Importing " + feed.title + "...")
             f.write(feed.url + "\n")
+    sys.exit()
 
 def init():
     if not os.path.exists(expanduser(args.basedir)):
