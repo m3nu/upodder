@@ -196,6 +196,7 @@ def process_feed(url):
         EntryProcessor(entry, feed)
 
 def import_opml(subscriptions, opml):
+    """Import a list of subscriptions from an OPML file."""
     result = listparser.parse(opml)
     with open(subscriptions, 'a') as f:
         for feed in result.feeds:
