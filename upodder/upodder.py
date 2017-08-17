@@ -197,11 +197,22 @@ def process_feed(url):
 
 def import_opml(subscriptions, opml):
     """Import a list of subscriptions from an OPML file."""
-    result = listparser.parse(opml)
+    subscribed_feeds = []
+    imported_feeds = listparser.parse(opml)
+    # Load the list of currently subscribed feeds
+    with open(subscriptions, 'r') as f:
+        for line in f:
+            feed = line.strip()
+            if feed.startswith("#") or len(feed) == 0:
+                continue
+            subscribed_feeds.append(feed)
+    # Import any feeds we're not already subscribed to
     with open(subscriptions, 'a') as f:
-        for feed in result.feeds:
-            print("Importing " + feed.title + "...")
-            f.write(feed.url + "\n")
+        for feed in imported_feeds.feeds:
+            if not feed.url in subscribed_feeds:
+                print("Importing " + feed.title + "...")
+                subscribed_feeds.append(feed.url)
+                f.write(feed.url + "\n")
     sys.exit()
 
 def init():
