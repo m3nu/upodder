@@ -8,7 +8,7 @@ setup(
         name='upodder',
         author='"Stan Vitkovskiy, Manuel Riel"',
         author_email='manu@snapdragon.cc',
-        version='0.6.10',
+        version='0.6.11',
         license='LICENSE.txt',
         url='https://github.com/m3nu/upodder',
         description=description,
