@@ -7,7 +7,7 @@ description = 'Command Line Podcast Downloader'
 setup(
         name='upodder',
         author='"Stan Vitkovskiy, Manuel Riel"',
-        author_email='stas.vitkovsky[at]gmail.com, manu[at]snapdragon.cc',
+        author_email='manu@snapdragon.cc',
         version='0.6.10',
         license='LICENSE.txt',
         url='https://github.com/m3nu/upodder',
@@ -20,7 +20,8 @@ setup(
             'requests',
             'feedparser',
             'sqlobject >=3.0.0a2dev-20151224',
-            'tqdm'
+            'tqdm',
+            'listparser'
             ],
         classifiers=[
             'Development Status :: 4 - Beta',

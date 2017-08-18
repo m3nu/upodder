@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import feedparser
+import listparser
 import time
 import hashlib
 import os
@@ -31,6 +32,8 @@ parser.add_argument('--oldness', '-o', default=30, type=int,
     help="Skip entries older than X days.")
 parser.add_argument('--mark-seen', action='store_true',
     help="Just mark all entries as seen and exit.")
+parser.add_argument('--import-opml', '-i', dest='opmlpath',
+    help='Import feeds from an OPML file.')
 parser.add_argument("--quiet", help="Only output errors.",
                     action="store_true")
 args = parser.parse_args()
@@ -192,6 +195,26 @@ def process_feed(url):
     for entry in feed.entries:
         EntryProcessor(entry, feed)
 
+def import_opml(subscriptions, opml):
+    """Import a list of subscriptions from an OPML file."""
+    subscribed_feeds = []
+    imported_feeds = listparser.parse(opml)
+    # Load the list of currently subscribed feeds
+    with open(subscriptions, 'r') as f:
+        for line in f:
+            feed = line.strip()
+            if feed.startswith("#") or len(feed) == 0:
+                continue
+            subscribed_feeds.append(feed)
+    # Import any feeds we're not already subscribed to
+    with open(subscriptions, 'a') as f:
+        for feed in imported_feeds.feeds:
+            if not feed.url in subscribed_feeds:
+                print("Importing " + feed.title + "...")
+                subscribed_feeds.append(feed.url)
+                f.write(feed.url + "\n")
+    sys.exit()
+
 def init():
     if not os.path.exists(expanduser(args.basedir)):
         l.info("Creating base dir %s"%args.basedir)
@@ -201,6 +224,9 @@ def init():
     if not os.path.exists(subscriptions):
         l.info("Creating empty subscriptions file %s"%subscriptions)
         open(subscriptions,'a').write("# Add your RSS/ATOM subscriptions here.\n\n")
+
+    if args.opmlpath:
+        import_opml(subscriptions, args.opmlpath)
 
     SeenEntry._connection = sqlite.builder()(expanduser(args.basedir + os.sep + 'seen.sqlite'), debug=False)
     SeenEntry.createTable(ifNotExists=True)
