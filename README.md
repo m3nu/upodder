@@ -1,6 +1,6 @@
 (Idea and first version from Stan Vitkovsky. Forked from https://code.google.com/p/upodder/)
 
-#Simple podcast downloader
+# Simple podcast downloader for the command line
 
 [![Circle CI](https://circleci.com/gh/m3nu/upodder.svg?style=svg)](https://circleci.com/gh/m3nu/upodder)
 
