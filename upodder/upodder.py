@@ -36,6 +36,8 @@ parser.add_argument('--import-opml', '-i', dest='opmlpath',
     help='Import feeds from an OPML file.')
 parser.add_argument("--quiet", help="Only output errors.",
                     action="store_true")
+parser.add_argument('--verbose', action='store_true',
+    help="Ask user for confirmation before downloading each episode.")
 args = parser.parse_args()
 
 YES = [1,"1","on","yes","Yes","YES","y","Y","true","True","TRUE","t","T"]
@@ -115,6 +117,11 @@ class EntryProcessor(object):
             """Downloads URL to file, returns file name of download (from URL or Content-Disposition)"""
             if not os.path.exists(os.path.dirname(downloadto)):
                 os.makedirs(os.path.dirname(downloadto))
+                
+            if args.verbose:
+                user_wish_to_download = input("Would you like to download " + entry['title'] +"? (y/n) or quit? (Ctrl+c): ")
+                if user_wish_to_download not in YES:
+                    return True
 
             l.debug("Downloading %s from %s" % (entry['title'], enclosure['href']))
             r = requests.get(enclosure['href'], stream=True, timeout=25)
