@@ -36,6 +36,8 @@ parser.add_argument('--import-opml', '-i', dest='opmlpath',
     help='Import feeds from an OPML file.')
 parser.add_argument("--quiet", help="Only output errors.",
                     action="store_true")
+parser.add_argument('--user-agent', '-A', default='upodder',
+    help="Set custom User-Agent string.")
 args = parser.parse_args()
 
 YES = [1,"1","on","yes","Yes","YES","y","Y","true","True","TRUE","t","T"]
@@ -117,7 +119,9 @@ class EntryProcessor(object):
                 os.makedirs(os.path.dirname(downloadto))
 
             l.debug("Downloading %s from %s" % (entry['title'], enclosure['href']))
-            r = requests.get(enclosure['href'], stream=True, timeout=25)
+
+            headers = { 'User-Agent': args.user_agent }
+            r = requests.get(enclosure['href'], stream=True, timeout=25, headers=headers)
 
             with open(downloadto, 'wb') as f:
                 if 'content-length' in r.headers:
